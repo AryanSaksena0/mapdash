@@ -632,10 +632,18 @@ body.warming #mob{display:none}
 
 .picks{grid-template-columns:repeat(auto-fit,minmax(248px,1fr))}
 @media (max-width:900px){
-  #warmer{flex-direction:column}
-  .wm-stage{flex:none;height:min(52vh,420px);padding:8px}
-  .wm-side{width:auto;border-left:none;border-top:1px solid var(--line);overflow-y:visible}
-  .wm-legend{margin-top:14px}
+  /* the app styles bare <aside> as the sliding map sidebar — opt this one out */
+  #warmer{flex-direction:column;overflow-y:auto}
+  .wm-stage{flex:none;height:min(50vh,400px);padding:8px}
+  .wm-side{position:static;transform:none;box-shadow:none;width:auto;flex:1 0 auto;
+    border-left:none;border-top:1px solid var(--line);overflow-y:visible}
+  .wm-legend{margin-top:16px}
+  /* let the tab strip scroll instead of the whole page */
+  #app{overflow-x:hidden}
+  header{overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+  header::-webkit-scrollbar{display:none}
+  .tabs{flex:0 0 auto}
+  .spacer{flex:0 0 auto;min-width:6px}
 }
 </style>
 </head>
