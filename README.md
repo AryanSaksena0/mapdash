@@ -1,7 +1,13 @@
 # Mapdash
 
-A world geography trainer. All 195 sovereign states, five game modes, adaptive
-drilling that hunts your weak spots, and timed 1v1 races against a friend.
+A world geography trainer. All 195 sovereign states, five drill modes, Warmer
+(a hot-or-cold country hunt on a globe), adaptive drilling that goes after your
+weak spots, and timed 1v1 races against a friend.
+
+**Play it: <https://aryansaksena0.github.io/mapdash/>**
+
+No accounts, no sign-ups, no ads, no server. Everything runs in your browser and
+your progress stays in it.
 
 No build step, no framework, no bundler. It's HTML, one JavaScript file, and a
 map. You can open it, read it, and change it.
@@ -12,12 +18,11 @@ map. You can open it, read it, and change it.
 
 ```
 index.html              markup + all the styling
-js/mapdash.js             the entire app — map engine, game modes, 1v1, sync
+js/mapdash.js           the map engine, drill modes and 1v1
+js/warmer.js            Warmer — the globe and the hot-or-cold hunt
 data/world-data.js      239 country outlines + capitals, flags, borders
-config.js               ← the only file you need to edit
 sw.js                   service worker (offline + instant loads)
 manifest.webmanifest    installs to a phone home screen
-supabase/schema.sql     paste into Supabase to switch on accounts
 ```
 
 ---
@@ -26,7 +31,7 @@ supabase/schema.sql     paste into Supabase to switch on accounts
 
 Double-click `index.html`. That's it — solo play works completely offline.
 
-You land on a home screen: pick **Solo** or **1v1**, or drop into Learn, Atlas
+You land on a home screen: pick **Solo**, **Warmer** or **1v1**, or drop into Learn, Atlas
 or Progress. The wordmark in the top-left always takes you back.
 
 For 1v1 you need a real origin, because browsers won't let two `file://` tabs
@@ -60,59 +65,23 @@ onto <https://app.netlify.com/drop>.
 $10/yr), then Pages → your project → Custom domains → add it. DNS is automatic
 if the domain is already at Cloudflare.
 
-At this point you have a live, installable, offline-capable site. Accounts and
-online 1v1 are the next step and cost nothing either.
+At this point you have a live, installable, offline-capable site.
 
 ---
 
-## Switch on accounts and online matches
+## Warmer
 
-### 1. Create a Supabase project
+One country is hidden. Guess any country and it lights up on the globe in a
+colour that says how far it is from the answer — pale blue is a world away, red
+is nearly there, and anything sharing a border with the answer burns hottest.
+There is no guess limit and no daily wait.
 
-<https://supabase.com> → New project. Free tier. Pick a region near you.
+Spelling is deliberately forgiving: type `djobuti` and the list still offers
+Djibouti, `burma` finds Myanmar, `drc` finds DR Congo. Enter takes the top
+match, so a misspelling never costs you a turn.
 
-### 2. Run the schema
-
-SQL Editor → New query → paste all of `supabase/schema.sql` → Run.
-
-That creates `profiles`, `mastery` (cross-device progress), `matches` (your
-head-to-head record), and an optional matchmaking queue. It's safe to re-run.
-
-### 3. Copy your keys into `config.js`
-
-Project Settings → API. You need two values:
-
-```js
-window.MAPDASH_CONFIG = {
-  supabaseUrl:     'https://abcdefghijkl.supabase.co',
-  supabaseAnonKey: 'eyJhbGciOi...'
-};
-```
-
-The anon key is **designed to be public** — it's safe in the browser. Every
-table is protected by row-level security, so it only ever grants access to the
-signed-in user's own rows. Never put the `service_role` key here.
-
-### 4. Turn on email sign-ups
-
-Authentication → Providers → **Email**: make sure it's enabled.
-
-If you want people playing within seconds of arriving, turn **Confirm email** OFF
-(Authentication → Providers → Email → Confirm email). Sign-up then creates the
-account and logs them straight in. Leave it ON and they have to click a link in
-their inbox first — safer against junk accounts, but a lot of people never come
-back from their email.
-
-### 5. Point auth back at your site
-
-Authentication → URL Configuration → set **Site URL** to your real domain and
-add it to **Redirect URLs**. Otherwise the email sign-in links bounce to
-localhost.
-
-Redeploy. The "Sign in" button now emails a one-click link, progress follows
-players between devices, and match links work anywhere in the world.
-
----
+The globe is drawn straight from `data/world-data.js`, the same file the map
+uses, so it adds no extra download.
 
 ## How 1v1 works
 
@@ -125,7 +94,7 @@ One hint per country, and it only narrows to the continent. Nothing further.
 
 Skip with `S` if you're stuck — the clock doesn't care about your feelings.
 
-Messages travel over Supabase Realtime broadcast (or `BroadcastChannel`
+Messages travel over `BroadcastChannel` (
 locally). The transport is swappable: both implementations speak the identical
 message format, in `const Net` near the bottom of `mapdash.js`.
 
@@ -176,5 +145,5 @@ to swap for a public-domain source if the terms don't suit you.
 | drag / two-finger swipe | pan |
 | pinch / double-click | zoom |
 
-Progress lives in `localStorage` under `mapdash.v1`, and syncs to Supabase when
+Progress lives in `localStorage` under `mapdash.v1` and never leaves your browser.
 signed in. "Reset all progress" on the Progress tab wipes the local copy.
