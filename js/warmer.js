@@ -124,6 +124,11 @@ var game=null;
 var HTML=
 '<div class="wm-stage">'+
   '<div class="wm-globe" id="wmWrap"><canvas id="wmCv"></canvas>'+
+    '<div class="zoom wm-zoom">'+
+      '<button id="wmZin" title="Zoom in" aria-label="Zoom in">+</button>'+
+      '<button id="wmZout" title="Zoom out" aria-label="Zoom out">−</button>'+
+      '<button id="wmZrst" title="Reset view" aria-label="Reset view">⤢</button>'+
+    '</div>'+
     '<div class="wm-tag" id="wmTag" style="display:none"></div></div>'+
 '</div>'+
 '<aside class="wm-side">'+
@@ -159,7 +164,7 @@ function newGame(){
   if(game && game.answer===id && p.length>1) id=p[(p.indexOf(id)+1)%p.length];
   game={answer:id,guesses:[],done:false,gaveUp:false};
   put(GK,game); say(''); if(inp){ inp.value=''; } closeSugg();
-  spin=0.22; render(); flyTo(20,0,700);
+  spin=0.22; zoom=1; render(); flyTo(20,0,700);
 }
 function restore(){
   var g=ls(GK,null);
@@ -181,6 +186,7 @@ function guess(id){
   if(!game||game.done) return;
   if(game.guesses.indexOf(id)>=0){ say(COUNTRIES[id].name+' is already on the board.','warn'); flyToCountry(id); return; }
   game.guesses.push(id);
+  spin=0;
   if(id===game.answer){
     game.done=true;
     var n=game.guesses.length;
@@ -283,7 +289,14 @@ function commit(){
 }
 
 /* ------------------------------------------------------------------ globe */
-var view={lat:18,lon:6}, spin=0.22, anim=null, dpr=1, cw=0, ch=0, dragging=false, rafId=0;
+var view={lat:18,lon:6}, spin=0.22, zoom=1, anim=null, dpr=1, cw=0, ch=0, dragging=false, rafId=0;
+var ZMIN=1, ZMAX=8;
+function radius(){ return (Math.min(cw,ch)/2-8)*zoom; }
+function setZoom(z){
+  z=Math.max(ZMIN,Math.min(ZMAX,z));
+  if(Math.abs(z-zoom)<1e-4) return;
+  zoom=z; spin=0; draw();
+}
 var reduce=false;
 try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
 
@@ -322,7 +335,7 @@ function ring(rg,R,ox,oy,sA,cA,sO,cO){
 }
 function draw(){
   if(!cw||!ctx) return;
-  var R=Math.min(cw,ch)/2-8, ox=cw/2, oy=ch/2;
+  var R=radius(), ox=cw/2, oy=ch/2;
   ctx.clearRect(0,0,cw,ch);
   var sA=Math.sin(view.lat*RAD), cA=Math.cos(view.lat*RAD),
       sO=Math.sin(view.lon*RAD), cO=Math.cos(view.lon*RAD);
@@ -366,7 +379,7 @@ function draw(){
     ctx.beginPath();
     for(var r=0;r<c.rings.length;r++){
       var rg=c.rings[r];
-      if(moving && rg.tiny && !col) continue;
+      if(moving && rg.tiny && !col && zoom<1.8) continue;
       if(rg.cx*camx+rg.cy*camy+rg.cz*camz < -rg.sr) continue;
       if(ring(rg,R,ox,oy,sA,cA,sO,cO)) any=true;
     }
@@ -495,26 +508,59 @@ function mount(){
   $w('wmGive').onclick=giveUp;
   $w('wmOpts').onclick=showOpts;
 
+  $w('wmZin').onclick=function(){ setZoom(zoom*1.5); };
+  $w('wmZout').onclick=function(){ setZoom(zoom/1.5); };
+  $w('wmZrst').onclick=function(){ zoom=1; spin=0; draw(); };
+  wrap.addEventListener('wheel',function(e){
+    e.preventDefault();
+    setZoom(zoom*Math.exp(-e.deltaY*0.0016));
+  },{passive:false});
+
   wrap.addEventListener('pointerdown',function(e){
-    dragging=true; dragMoved=0; anim=null; wrap.classList.add('drag');
-    dx0=e.clientX; dy0=e.clientY; vlat=view.lat; vlon=view.lon;
-    try{ wrap.setPointerCapture(e.pointerId); }catch(err){}
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===1){
+      dragging=true; dragMoved=0; anim=null; wrap.classList.add('drag');
+      dx0=e.clientX; dy0=e.clientY; vlat=view.lat; vlon=view.lon;
+      try{ wrap.setPointerCapture(e.pointerId); }catch(err){}
+    }else if(pts.size===2){
+      dragging=false; wrap.classList.remove('drag');
+      pinch0=pinchSpan(); zoom0=zoom;
+    }
   });
   wrap.addEventListener('pointermove',function(e){
+    if(pts.has(e.pointerId)) pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size>=2){ if(pinch0>0) setZoom(zoom0*pinchSpan()/pinch0); return; }
     if(!dragging) return;
-    var R=Math.min(cw,ch)/2-8, f=90/Math.max(60,R);
+    var R=radius(), f=90/Math.max(60,R);
     var dx=e.clientX-dx0, dy=e.clientY-dy0;
     dragMoved=Math.max(dragMoved,Math.abs(dx)+Math.abs(dy));
     view.lon=((vlon-dx*f)+540)%360-180;
     view.lat=Math.max(-85,Math.min(85,vlat+dy*f));
     draw();
   });
-  function end(){ if(!dragging) return; dragging=false; wrap.classList.remove('drag'); if(dragMoved>6) spin=0; }
+  function end(e){
+    pts.delete(e.pointerId);
+    if(pts.size<2) pinch0=0;
+    if(pts.size===1){                     // second finger lifted — carry on rotating
+      var only=pts.values().next().value;
+      dragging=true; dragMoved=0; wrap.classList.add('drag');
+      dx0=only.x; dy0=only.y; vlat=view.lat; vlon=view.lon;
+      return;
+    }
+    if(!dragging) return;
+    dragging=false; wrap.classList.remove('drag'); if(dragMoved>6) spin=0;
+  }
   wrap.addEventListener('pointerup',end);
   wrap.addEventListener('pointercancel',end);
   window.addEventListener('resize',function(){ if(live) resize(); });
 }
 var dx0=0,dy0=0,vlat=0,vlon=0,dragMoved=0;
+var pts=new Map(), pinch0=0, zoom0=1;
+function pinchSpan(){
+  var a=[]; pts.forEach(function(p){ a.push(p); });
+  if(a.length<2) return 0;
+  return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
+}
 
 return {
   open:function(){
@@ -524,6 +570,7 @@ return {
     document.body.classList.add('warming');
     live=true; last=0;
     if(!game && !restore()) newGame();
+    if(game && game.guesses.length) spin=0;
     render(); resize();
     if(!rafId) rafId=requestAnimationFrame(frame);
     setTimeout(function(){ resize(); if(window.innerWidth>820) inp.focus(); },30);
