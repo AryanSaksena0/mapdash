@@ -23,6 +23,7 @@ index.html              markup + all the styling
 js/mapdash.js           the map engine, drill modes and 1v1
 js/warmer.js            Warmer — the globe and the hot-or-cold hunt
 data/world-data.js      239 country outlines + capitals, flags, borders
+deploy.sh               publishes to mapdashgame.web.app
 sw.js                   service worker (offline + instant loads)
 manifest.webmanifest    installs to a phone home screen
 ```
