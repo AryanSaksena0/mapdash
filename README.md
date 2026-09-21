@@ -4,7 +4,9 @@ A world geography trainer. All 195 sovereign states, five drill modes, Warmer
 (a hot-or-cold country hunt on a globe), adaptive drilling that goes after your
 weak spots, and timed 1v1 races against a friend.
 
-**Play it: <https://aryansaksena0.github.io/mapdash/>**
+**Play it: <https://mapdashgame.web.app>**
+
+Mirror: <https://aryansaksena0.github.io/mapdash/>
 
 No accounts, no sign-ups, no ads, no server. Everything runs in your browser and
 your progress stays in it.
